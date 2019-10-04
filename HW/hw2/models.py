@@ -6,6 +6,26 @@ This file is where you will write most of your code!
 
 import numpy as np
 
+class RegTreeNode(object):
+    def __init__(self, X, y, depth):
+        self.X = X
+        self.y = y
+        self.d = 0
+        self.t = 0
+        self.depth = depth
+        self.parent = None
+        self.left = None
+        self.right = None
+        self.leaf = 0
+        self.pred = 0
+
+    def zeroVariance(self):
+        allZeroVar = 1
+        for i in range(self.X.shape[1]):
+            if (np.var(self.X[:, i]) != 0):
+                allZeroVar = 0
+        return allZeroVar
+
 class RegressionTree(object):
     def __init__(self, nfeatures, max_depth):
         self.num_input_features = nfeatures
@@ -21,11 +41,17 @@ class RegressionTree(object):
         """
 
         # TODO: Implement this!
-        self.nodes.append(RegTreeNode(X, y, 0))
+        root = RegTreeNode(X, y, 0)
+        if (root.depth > self.max_depth or root.X.shape[0] <= 1 or root.zeroVariance()):
+            root.leaf = 1
+            root.pred = np.mean(root.y)
+        self.nodes.append(root)
         for i in self.nodes:
-            if i.leaf == 0: # node is not a leaf
-                d, t = optimizeSplit(i.X, i.y)
-                L, R, yL, yR = split(i.X, i.y, d, t)
+            if i.leaf == 0 and i.left == None and i.right == None: # node is not a leaf but no children
+                d, t = self.optimizeSplit(i.X, i.y)
+                i.d = d
+                i.t = t
+                L, R, yL, yR = self.split(i.X, i.y, d, t)
                 left = RegTreeNode(i.X[L, :], yL, i.depth + 1)
                 right = RegTreeNode(i.X[R, :], yR, i.depth + 1)
                 left.parent = i
@@ -38,35 +64,9 @@ class RegressionTree(object):
                 if (right.depth > self.max_depth or right.X.shape[0] <= 1 or right.zeroVariance()):
                     right.leaf = 1
                     right.pred = np.mean(right.y)
+                self.nodes.append(left)
+                self.nodes.append(right)
 
-        raise Exception("You must implement this method!")
-
-    class RegTreeNode(object):
-        def __init__(self, X, y, depth):
-            self.X = X
-            self.y = y
-            self.depth = depth
-            self.parent = None
-            self.left = None
-            self.right = None
-            self.leaf = 0
-            self.pred = 0
-
-        def zeroVariance(self):
-            allZeroVar = 1
-            for i in self.X.shape[1]:
-                if (np.var(X[:,i]) == 0):
-                    allZeroVar = 0
-            return allZeroVar
-
-        # def setParent(self, obj):
-        #     self.parent = obj
-        #
-        # def setLeft(self, obj):
-        #     self.left = obj
-        #
-        # def setRight(self, obj):
-        #     self.right = obj
 
     def computeSSE(self, L, R, y):
         """ Compute  residual sum of squared error
@@ -82,16 +82,21 @@ class RegressionTree(object):
                 sum_y_L += y[i]
             if i in R:
                 sum_y_R += y[i]
-        muL = sum_y_L / len(L)
-        muR = sum_y_R / len(R)
-
+        if (len(L) > 0):
+            muL = sum_y_L / len(L)
+        else:
+            muL = 0
+        if (len(R) > 0):
+            muR = sum_y_R / len(R)
+        else:
+            muR = 0
         sse = 0
         for i in range(len(y)):
             if i in L:
                 sse += (y[i] - muL)**2
             if i in R:
                 sse += (y[i] - muR)**2
-        return SSE
+        return sse
 
     def split(self, X, y, d, t):
         """ Get the split indices
@@ -106,10 +111,10 @@ class RegressionTree(object):
         yR = []
         for i in range(X.shape[0]):
             if X[i,d] < t:
-                L.append[i]
+                L.append(i)
                 yL.append(y[i])
             else:
-                R.append[i]
+                R.append(i)
                 yR.append(y[i])
         return L, R, yL, yR
 
@@ -120,23 +125,19 @@ class RegressionTree(object):
                         y: An array of floats with shape [num_examples].
                         max_depth: An int representing the maximum depth of the tree
         """
-        minSSE = 99999999
-        dstar = 0
-        tstar = 0
-        Lstar = []
-        Rstar = []
+        minSSE = float('inf')
+        tCheck = []
         for d in range(self.num_input_features):
             for i in range(X.shape[0]):
-                t = X[i][d]
-                L,R, yL, yR = split(X, y, d, t)
-                sse = computeSSE(L,R,y)
-                if sse < minSSE:
-                    minSSE = sse
-                    dstar = d
-                    tstar = t
-                    Lstar = L
-                    Rstar = R
-
+                if ((d, i) not in tCheck):
+                    tCheck.append((d, i))
+                    t = X[i][d]
+                    L,R, yL, yR = self.split(X, y, d, t)
+                    sse = self.computeSSE(L,R,y)
+                    if sse < minSSE:
+                        minSSE = sse
+                        dstar = d
+                        tstar = t
         return dstar, tstar
 
     def predict(self, X):
@@ -148,7 +149,17 @@ class RegressionTree(object):
                 An array of floats with shape [num_examples].
         """
         # TODO: Implement this!
-        raise Exception("You must implement this method!")
+        y_hat = []
+        for i in range(X.shape[0]):
+            node = self.nodes[0]
+            while (node.leaf == 0):
+                if (X[i, node.d] < node.t):
+                    node = node.left
+                else:
+                    node = node.right
+            y_hat.append(node.pred)
+        return y_hat
+
 
 
 
@@ -167,6 +178,11 @@ class GradientBoostedRegressionTree(object):
                 n_estimators: An int representing the number of regression trees to iteratively fit
         """
         # TODO: Implement this!
+        F = []
+        F.append(np.mean(y)) # F_0
+        #for i in range(n_estimators):
+
+
         raise Exception("You must implement this method!")
 
     def predict(self, X):
