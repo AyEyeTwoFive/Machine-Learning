@@ -5,6 +5,7 @@ This file is where you will write most of your code!
 """
 
 import numpy as np
+import cProfile
 
 class RegTreeNode(object):
     def __init__(self, X, y, depth):
@@ -179,8 +180,12 @@ class GradientBoostedRegressionTree(object):
         """
         # TODO: Implement this!
         F = []
-        F.append(np.mean(y)) # F_0
-        #for i in range(n_estimators):
+        F0 = np.mean(y)
+        F = F0 * np.zeros(X.shape[0])
+        for i in range(n_estimators):
+            g = []
+            for j in range(X.shape[0]):
+                g.append(y[j] - F)
 
 
         raise Exception("You must implement this method!")
