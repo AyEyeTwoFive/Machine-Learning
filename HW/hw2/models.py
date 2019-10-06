@@ -5,7 +5,6 @@ This file is where you will write most of your code!
 """
 
 import numpy as np
-import cProfile
 
 class RegTreeNode(object):
     def __init__(self, X, y, depth):
@@ -25,6 +24,7 @@ class RegTreeNode(object):
         for i in range(self.X.shape[1]):
             if (np.var(self.X[:, i]) != 0):
                 allZeroVar = 0
+                break
         return allZeroVar
 
 class RegressionTree(object):
@@ -53,8 +53,8 @@ class RegressionTree(object):
                 i.d = d
                 i.t = t
                 L, R, yL, yR = self.split(i.X, i.y, d, t)
-                left = RegTreeNode(i.X[L, :], yL, i.depth + 1)
-                right = RegTreeNode(i.X[R, :], yR, i.depth + 1)
+                left = RegTreeNode(L, yL, i.depth + 1)
+                right = RegTreeNode(R, yR, i.depth + 1)
                 left.parent = i
                 right.parent = i
                 i.left = left
@@ -68,35 +68,26 @@ class RegressionTree(object):
                 self.nodes.append(left)
                 self.nodes.append(right)
 
-
-    def computeSSE(self, L, R, y):
+    def computeSSE(self, L, R, yL, yR):
         """ Compute  residual sum of squared error
                         Args:
                         L: left group
                         R: right group
                         y: An array of floats with shape [num_examples].
         """
-        sum_y_L = 0
-        sum_y_R = 0
-        for i in range(len(y)):
-            if i in L:
-                sum_y_L += y[i]
-            if i in R:
-                sum_y_R += y[i]
-        if (len(L) > 0):
-            muL = sum_y_L / len(L)
+        if (len(yL) > 0):
+            muL = sum(yL) / len(yL)
         else:
             muL = 0
         if (len(R) > 0):
-            muR = sum_y_R / len(R)
+            muR = sum(yR)/ len(yR)
         else:
             muR = 0
         sse = 0
-        for i in range(len(y)):
-            if i in L:
-                sse += (y[i] - muL)**2
-            if i in R:
-                sse += (y[i] - muR)**2
+        for i in range(len(yL)):
+            sse += (yL[i] - muL)**2
+        for i in range(len(yR)):
+            sse += (yR[i] - muR)**2
         return sse
 
     def split(self, X, y, d, t):
@@ -117,7 +108,7 @@ class RegressionTree(object):
             else:
                 R.append(i)
                 yR.append(y[i])
-        return L, R, yL, yR
+        return X[L,:], X[R,:], yL, yR
 
     def optimizeSplit(self, X,y):
         """ Find d and t for best split
@@ -133,8 +124,8 @@ class RegressionTree(object):
                 if ((d, i) not in tCheck):
                     tCheck.append((d, i))
                     t = X[i][d]
-                    L,R, yL, yR = self.split(X, y, d, t)
-                    sse = self.computeSSE(L,R,y)
+                    X_L, X_R, yL, yR = self.split(X, y, d, t)
+                    sse = self.computeSSE(X_L, X_R, yL, yR)
                     if sse < minSSE:
                         minSSE = sse
                         dstar = d
@@ -163,7 +154,6 @@ class RegressionTree(object):
 
 
 
-
 class GradientBoostedRegressionTree(object):
     def __init__(self, nfeatures, max_depth, n_estimators, regularization_parameter):
         self.num_input_features = nfeatures
@@ -179,16 +169,14 @@ class GradientBoostedRegressionTree(object):
                 n_estimators: An int representing the number of regression trees to iteratively fit
         """
         # TODO: Implement this!
-        F = []
-        F0 = np.mean(y)
-        F = F0 * np.zeros(X.shape[0])
+        F = np.mean(y)
         for i in range(n_estimators):
             g = []
             for j in range(X.shape[0]):
                 g.append(y[j] - F)
-
-
-        raise Exception("You must implement this method!")
+        h = RegressionTree(self.num_input_features, self.max_depth)
+        h.fit(X, g)
+        F = F + self.regularization_parameter * h
 
     def predict(self, X):
         """ Predict.
