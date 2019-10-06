@@ -76,18 +76,14 @@ class RegressionTree(object):
                         y: An array of floats with shape [num_examples].
         """
         if (len(yL) > 0):
-            muL = sum(yL) / len(yL)
+            muL = np.mean(yL)
         else:
             muL = 0
-        if (len(R) > 0):
-            muR = sum(yR)/ len(yR)
+        if (len(yR) > 0):
+            muR = np.mean(yR)
         else:
             muR = 0
-        sse = 0
-        for i in range(len(yL)):
-            sse += (yL[i] - muL)**2
-        for i in range(len(yR)):
-            sse += (yR[i] - muR)**2
+        sse = sum([(x - muL)**2 for x in yL]) + sum([(x - muR)**2 for x in yR])
         return sse
 
     def split(self, X, y, d, t):
@@ -160,6 +156,7 @@ class GradientBoostedRegressionTree(object):
         self.max_depth = max_depth
         self.n_estimators = n_estimators
         self.regularization_parameter = regularization_parameter
+        self.F = None
     def fit(self, *, X, y):
         """ Fit the model.
                 Args:
@@ -169,14 +166,20 @@ class GradientBoostedRegressionTree(object):
                 n_estimators: An int representing the number of regression trees to iteratively fit
         """
         # TODO: Implement this!
-        F = np.mean(y)
-        for i in range(n_estimators):
+        F0 = np.mean(y)
+        F = np.zeros((X.shape[0], self.n_estimators))
+        F[:,0] = F0 * np.ones(X.shape[0])
+        for i in range(self.n_estimators):
             g = []
             for j in range(X.shape[0]):
-                g.append(y[j] - F)
-        h = RegressionTree(self.num_input_features, self.max_depth)
-        h.fit(X, g)
-        F = F + self.regularization_parameter * h
+                g.append(y[j] - F[j,i])
+            h = RegressionTree(self.num_input_features, self.max_depth)
+            h.fit(X=X, y=g)
+            hpred = h.predict(X=X)
+            print(len(hpred))
+            for k in range(X.shape[0]):
+                F[k, i] += self.regularization_parameter * hpred[k]
+        self.F = F
 
     def predict(self, X):
         """ Predict.
