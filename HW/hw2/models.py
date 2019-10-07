@@ -97,21 +97,21 @@ class RegressionTree(object):
                                 d: A feature dimension.
                                 t: threshold
         """
-        L = X[:, d] < t
-        return X[L], X[~L], y[L], y[~L]
-    #     L = []
-    #     R = []
-    #     yL = []
-    #     yR = []
-    #     for i in range(X.shape[0]):
-    #         if X[i, d] < t:
-    #             L.append(i)
-    #             yL.append(y[i])
-    #         else:
-    #             R.append(i)
-    #             yR.append(y[i])
-    #     return X[L, :], X[R, :], yL, yR
-    #
+        # L = X[:, d] < t
+        #         # return X[L], X[~L], y[L], y[~L]
+        L = []
+        R = []
+        yL = []
+        yR = []
+        for i in range(X.shape[0]):
+            if X[i, d] < t:
+                L.append(i)
+                yL.append(y[i])
+            else:
+                R.append(i)
+                yR.append(y[i])
+        return X[L, :], X[R, :], yL, yR
+
     def splitSorted(self, X, y, d, t):
         ind = np.where(X[:,d] == t)[0][0]
         return X[0:ind, :], X[ind:X.shape[0]], y[0:ind], y[ind:X.shape[0]]
@@ -165,6 +165,7 @@ class GradientBoostedRegressionTree(object):
         self.n_estimators = n_estimators
         self.regularization_parameter = regularization_parameter
         self.F = None
+        self.h = None
 
     def fit(self, X, y):
     #def fit(self, *, X, y):
@@ -176,20 +177,22 @@ class GradientBoostedRegressionTree(object):
                 n_estimators: An int representing the number of regression trees to iteratively fit
         """
         # TODO: Implement this!
-        self.F0 = np.mean(y)
+        F0 = np.mean(y)
         F = np.zeros((X.shape[0], self.n_estimators))
         F[:,0] = F0 * np.ones(X.shape[0])
+        h = []
         for i in range(self.n_estimators):
             g = []
             for j in range(X.shape[0]):
                 g.append(y[j] - F[j,i])
-            h = RegressionTree(self.num_input_features, self.max_depth)
-            h.fit(X=X, y=g)
-            hpred = h.predict(X=X)
-            print(len(hpred))
+            h.append(RegressionTree(self.num_input_features, self.max_depth))
+            h[i].fit(X=X, y=g)
+            hpred = h[i].predict(X=X)
+            print("Iteration:", i)
             for k in range(X.shape[0]):
                 F[k, i] += self.regularization_parameter * hpred[k]
         self.F = F
+        self.h = h
 
     def predict(self, X):
         """ Predict.
@@ -202,5 +205,8 @@ class GradientBoostedRegressionTree(object):
         # TODO: Implement this!
         y_hat = []
         for i in range(X.shape[0]):
-            y_hat.append(self.F[i])
+            pred = self.F[0][0]
+            for j in range(self.n_estimators):
+                pred += self.regularization_parameter * self.h[j].predict(X[i,:])
+            y_hat.append(pred)
         return y_hat
