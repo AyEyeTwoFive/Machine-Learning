@@ -97,8 +97,24 @@ class RegressionTree(object):
                                 d: A feature dimension.
                                 t: threshold
         """
-        L = X[:,d] < t
+        L = X[:, d] < t
         return X[L], X[~L], y[L], y[~L]
+    #     L = []
+    #     R = []
+    #     yL = []
+    #     yR = []
+    #     for i in range(X.shape[0]):
+    #         if X[i, d] < t:
+    #             L.append(i)
+    #             yL.append(y[i])
+    #         else:
+    #             R.append(i)
+    #             yR.append(y[i])
+    #     return X[L, :], X[R, :], yL, yR
+    #
+    def splitSorted(self, X, y, d, t):
+        ind = np.where(X[:,d] == t)[0][0]
+        return X[0:ind, :], X[ind:X.shape[0]], y[0:ind], y[ind:X.shape[0]]
 
     #@profile
     def optimizeSplit(self, X,y):
@@ -160,7 +176,7 @@ class GradientBoostedRegressionTree(object):
                 n_estimators: An int representing the number of regression trees to iteratively fit
         """
         # TODO: Implement this!
-        F0 = np.mean(y)
+        self.F0 = np.mean(y)
         F = np.zeros((X.shape[0], self.n_estimators))
         F[:,0] = F0 * np.ones(X.shape[0])
         for i in range(self.n_estimators):
@@ -184,4 +200,7 @@ class GradientBoostedRegressionTree(object):
                 An array of floats with shape [num_examples].
         """
         # TODO: Implement this!
-        raise Exception("You must implement this method!")
+        y_hat = []
+        for i in range(X.shape[0]):
+            y_hat.append(self.F[i])
+        return y_hat
