@@ -33,7 +33,9 @@ class RegressionTree(object):
         self.max_depth = max_depth
         self.nodes = []
 
-    def fit(self, *, X, y):
+    #@profile
+    def fit(self, X, y):
+    #def fit(self, *, X, y):
         """ Fit the model.
                 Args:
                 X: A of floats with shape [num_examples, num_features].
@@ -48,7 +50,7 @@ class RegressionTree(object):
             root.pred = np.mean(root.y)
         self.nodes.append(root)
         for i in self.nodes:
-            if i.leaf == 0 and i.left == None and i.right == None: # node is not a leaf but no children
+            if (i.leaf == 0 and i.left == None and i.right == None): # node is not a leaf but no children
                 d, t = self.optimizeSplit(i.X, i.y)
                 i.d = d
                 i.t = t
@@ -68,7 +70,8 @@ class RegressionTree(object):
                 self.nodes.append(left)
                 self.nodes.append(right)
 
-    def computeSSE(self, L, R, yL, yR):
+    #@profile
+    def computeSSE(self, yL, yR):
         """ Compute  residual sum of squared error
                         Args:
                         L: left group
@@ -86,6 +89,7 @@ class RegressionTree(object):
         sse = sum([(x - muL)**2 for x in yL]) + sum([(x - muR)**2 for x in yR])
         return sse
 
+    #@profile
     def split(self, X, y, d, t):
         """ Get the split indices
                                 Args:
@@ -93,19 +97,10 @@ class RegressionTree(object):
                                 d: A feature dimension.
                                 t: threshold
         """
-        L = []
-        R = []
-        yL = []
-        yR = []
-        for i in range(X.shape[0]):
-            if X[i,d] < t:
-                L.append(i)
-                yL.append(y[i])
-            else:
-                R.append(i)
-                yR.append(y[i])
-        return X[L,:], X[R,:], yL, yR
+        L = X[:,d] < t
+        return X[L], X[~L], y[L], y[~L]
 
+    #@profile
     def optimizeSplit(self, X,y):
         """ Find d and t for best split
                         Args:
@@ -114,18 +109,15 @@ class RegressionTree(object):
                         max_depth: An int representing the maximum depth of the tree
         """
         minSSE = float('inf')
-        tCheck = []
         for d in range(self.num_input_features):
-            for i in range(X.shape[0]):
-                if ((d, i) not in tCheck):
-                    tCheck.append((d, i))
-                    t = X[i][d]
-                    X_L, X_R, yL, yR = self.split(X, y, d, t)
-                    sse = self.computeSSE(X_L, X_R, yL, yR)
-                    if sse < minSSE:
-                        minSSE = sse
-                        dstar = d
-                        tstar = t
+            XCheck = np.unique(X[:,d])
+            for t in XCheck:
+                X_L, X_R, yL, yR = self.split(X, y, d, t)
+                sse = self.computeSSE(yL, yR)
+                if sse < minSSE:
+                    minSSE = sse
+                    dstar = d
+                    tstar = t
         return dstar, tstar
 
     def predict(self, X):
@@ -157,7 +149,9 @@ class GradientBoostedRegressionTree(object):
         self.n_estimators = n_estimators
         self.regularization_parameter = regularization_parameter
         self.F = None
-    def fit(self, *, X, y):
+
+    def fit(self, X, y):
+    #def fit(self, *, X, y):
         """ Fit the model.
                 Args:
                 X: A of floats with shape [num_examples, num_features].
