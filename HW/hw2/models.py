@@ -98,7 +98,7 @@ class RegressionTree(object):
                                 t: threshold
         """
         # L = X[:, d] < t
-        #         # return X[L], X[~L], y[L], y[~L]
+        # return X[L], X[~L], y[L], y[~L]
         L = []
         R = []
         yL = []
@@ -164,6 +164,7 @@ class GradientBoostedRegressionTree(object):
         self.max_depth = max_depth
         self.n_estimators = n_estimators
         self.regularization_parameter = regularization_parameter
+        self.F0 = None
         self.F = None
         self.h = None
 
@@ -177,20 +178,20 @@ class GradientBoostedRegressionTree(object):
                 n_estimators: An int representing the number of regression trees to iteratively fit
         """
         # TODO: Implement this!
-        F0 = np.mean(y)
-        F = np.zeros((X.shape[0], self.n_estimators))
-        F[:,0] = F0 * np.ones(X.shape[0])
+        self.F0 = np.mean(y)
+        F = np.zeros((X.shape[0], self.n_estimators + 1))
+        F[:,0] = self.F0 * np.ones(X.shape[0])
         h = []
-        for i in range(self.n_estimators):
+        for i in range(1, self.n_estimators + 1):
             g = []
             for j in range(X.shape[0]):
-                g.append(y[j] - F[j,i])
+                g.append(y[j] - F[j,i - 1])
             h.append(RegressionTree(self.num_input_features, self.max_depth))
-            h[i].fit(X=X, y=g)
-            hpred = h[i].predict(X=X)
+            h[i - 1].fit(X=X, y=g)
+            hpred = h[i - 1].predict(X=X)
             print("Iteration:", i)
             for k in range(X.shape[0]):
-                F[k, i] += self.regularization_parameter * hpred[k]
+                F[k,i] = F[k, i - 1] + self.regularization_parameter * hpred[k]
         self.F = F
         self.h = h
 
@@ -203,10 +204,9 @@ class GradientBoostedRegressionTree(object):
                 An array of floats with shape [num_examples].
         """
         # TODO: Implement this!
-        y_hat = []
-        for i in range(X.shape[0]):
-            pred = self.F[0][0]
-            for j in range(self.n_estimators):
-                pred += self.regularization_parameter * self.h[j].predict(X[i,:])
-            y_hat.append(pred)
+        y_hat = self.F0 * np.ones(X.shape[0])
+        for j in range(self.n_estimators):
+            hpred = self.h[j].predict(X)
+            for i in range(X.shape[0]):
+                y_hat[i] += self.regularization_parameter * hpred[i]
         return y_hat
