@@ -69,23 +69,6 @@ class RegressionTree(object):
                 self.nodes.append(left)
                 self.nodes.append(right)
 
-    def computeSSE(self, yL, yR):
-        """ Compute  residual sum of squared error
-                        Args:
-                        L: left group
-                        R: right group
-                        y: An array of floats with shape [num_examples].
-        """
-        if (len(yL) > 0):
-            muL = np.mean(yL)
-        else:
-            muL = 0
-        if (len(yR) > 0):
-            muR = np.mean(yR)
-        else:
-            muR = 0
-        return np.sum(np.square(yL - muL)) + np.sum(np.square(yR - muR))
-
     def split(self, X, y, d, t):
         """ Get the split indices
                                 Args:
@@ -108,7 +91,13 @@ class RegressionTree(object):
             XCheck = np.unique(X[:,d])
             for t in XCheck:
                 L = X[:, d] < t
-                sse = self.computeSSE(y[L], y[~L])
+                yL = y[L]
+                yR = y[~L]
+                if len(yL) == 0 or len(yR) == 0:
+                    continue
+                muL = np.mean(yL)
+                muR = np.mean(yR)
+                sse = np.sum(np.square(yL - muL)) + np.sum(np.square(yR - muR))
                 if sse < minSSE:
                     minSSE = sse
                     dstar = d
@@ -133,8 +122,6 @@ class RegressionTree(object):
                     node = node.right
             y_hat.append(node.pred)
         return y_hat
-
-
 
 class GradientBoostedRegressionTree(object):
     def __init__(self, nfeatures, max_depth, n_estimators, regularization_parameter):
