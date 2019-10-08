@@ -33,7 +33,6 @@ class RegressionTree(object):
         self.max_depth = max_depth
         self.nodes = []
 
-    #@profile
     def fit(self, *, X, y):
         """ Fit the model.
                 Args:
@@ -42,7 +41,6 @@ class RegressionTree(object):
                 max_depth: An int representing the maximum depth of the tree
         """
 
-        # TODO: Implement this!
         root = RegTreeNode(X, y, 0)
         if (root.depth > self.max_depth or root.X.shape[0] <= 1 or root.zeroVariance()):
             root.leaf = 1
@@ -62,14 +60,15 @@ class RegressionTree(object):
                 i.right = right
                 if (left.depth > self.max_depth or left.X.shape[0] <= 1 or left.zeroVariance()):
                     left.leaf = 1
-                    left.pred = np.mean(left.y)
+                    if len(left.y > 0):
+                        left.pred = np.mean(left.y)
                 if (right.depth > self.max_depth or right.X.shape[0] <= 1 or right.zeroVariance()):
                     right.leaf = 1
-                    right.pred = np.mean(right.y)
+                    if len(right.y > 0):
+                        right.pred = np.mean(right.y)
                 self.nodes.append(left)
                 self.nodes.append(right)
 
-    #@profile
     def computeSSE(self, yL, yR):
         """ Compute  residual sum of squared error
                         Args:
@@ -85,10 +84,8 @@ class RegressionTree(object):
             muR = np.mean(yR)
         else:
             muR = 0
-        sse = sum([(x - muL)**2 for x in yL]) + sum([(x - muR)**2 for x in yR])
-        return sse
+        return np.sum(np.square(yL - muL)) + np.sum(np.square(yR - muR))
 
-    #@profile
     def split(self, X, y, d, t):
         """ Get the split indices
                                 Args:
@@ -99,10 +96,6 @@ class RegressionTree(object):
         L = X[:, d] < t
         return X[L], X[~L], y[L], y[~L]
 
-    def splitSorted(self, y, ind):
-        return y[0:ind], y[ind:len(y)]
-
-    #@profile
     def optimizeSplit(self, X,y):
         """ Find d and t for best split
                         Args:
@@ -114,34 +107,13 @@ class RegressionTree(object):
         for d in range(self.num_input_features):
             XCheck = np.unique(X[:,d])
             for t in XCheck:
-                X_L, X_R, yL, yR = self.split(X, y, d, t)
-                sse = self.computeSSE(yL, yR)
+                L = X[:, d] < t
+                sse = self.computeSSE(y[L], y[~L])
                 if sse < minSSE:
                     minSSE = sse
                     dstar = d
                     tstar = t
         return dstar, tstar
-
-    # def optimizeSplit(self, X,y):
-    #     """ Find d and t for best split
-    #                     Args:
-    #                     X: A of floats with shape [num_examples, num_features].
-    #                     y: An array of floats with shape [num_examples].
-    #                     max_depth: An int representing the maximum depth of the tree
-    #     """
-    #     minSSE = float('inf')
-    #     X = np.column_stack((X, y))
-    #     for d in range(self.num_input_features):
-    #         Xnew = X[np.argsort(X[:,d])]
-    #         XCheck, inds = np.unique(Xnew[:,d], return_index=True)
-    #         for t in inds:
-    #             yL, yR = self.splitSorted(Xnew[:,Xnew.shape[1] - 1], t)
-    #             sse = self.computeSSE(yL, yR)
-    #             if sse < minSSE:
-    #                 minSSE = sse
-    #                 dstar = d
-    #                 tstar = t
-    #     return dstar, tstar
 
     def predict(self, X):
         """ Predict.
@@ -151,7 +123,6 @@ class RegressionTree(object):
         Returns:
                 An array of floats with shape [num_examples].
         """
-        # TODO: Implement this!
         y_hat = []
         for i in range(X.shape[0]):
             node = self.nodes[0]
@@ -183,7 +154,6 @@ class GradientBoostedRegressionTree(object):
                 max_depth: An int representing the maximum depth of the tree
                 n_estimators: An int representing the number of regression trees to iteratively fit
         """
-        # TODO: Implement this!
         self.F0 = np.mean(y)
         F = np.zeros((X.shape[0], self.n_estimators + 1))
         F[:,0] = self.F0 * np.ones(X.shape[0])
@@ -209,7 +179,6 @@ class GradientBoostedRegressionTree(object):
         Returns:
                 An array of floats with shape [num_examples].
         """
-        # TODO: Implement this!
         y_hat = self.F0 * np.ones(X.shape[0])
         for j in range(self.n_estimators):
             hpred = self.h[j].predict(X)
