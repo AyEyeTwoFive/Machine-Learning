@@ -34,8 +34,7 @@ class RegressionTree(object):
         self.nodes = []
 
     #@profile
-    def fit(self, X, y):
-    #def fit(self, *, X, y):
+    def fit(self, *, X, y):
         """ Fit the model.
                 Args:
                 X: A of floats with shape [num_examples, num_features].
@@ -97,24 +96,11 @@ class RegressionTree(object):
                                 d: A feature dimension.
                                 t: threshold
         """
-        # L = X[:, d] < t
-        # return X[L], X[~L], y[L], y[~L]
-        L = []
-        R = []
-        yL = []
-        yR = []
-        for i in range(X.shape[0]):
-            if X[i, d] < t:
-                L.append(i)
-                yL.append(y[i])
-            else:
-                R.append(i)
-                yR.append(y[i])
-        return X[L, :], X[R, :], yL, yR
+        L = X[:, d] < t
+        return X[L], X[~L], y[L], y[~L]
 
-    def splitSorted(self, X, y, d, t):
-        ind = np.where(X[:,d] == t)[0][0]
-        return X[0:ind, :], X[ind:X.shape[0]], y[0:ind], y[ind:X.shape[0]]
+    def splitSorted(self, y, ind):
+        return y[0:ind], y[ind:len(y)]
 
     #@profile
     def optimizeSplit(self, X,y):
@@ -135,6 +121,27 @@ class RegressionTree(object):
                     dstar = d
                     tstar = t
         return dstar, tstar
+
+    # def optimizeSplit(self, X,y):
+    #     """ Find d and t for best split
+    #                     Args:
+    #                     X: A of floats with shape [num_examples, num_features].
+    #                     y: An array of floats with shape [num_examples].
+    #                     max_depth: An int representing the maximum depth of the tree
+    #     """
+    #     minSSE = float('inf')
+    #     X = np.column_stack((X, y))
+    #     for d in range(self.num_input_features):
+    #         Xnew = X[np.argsort(X[:,d])]
+    #         XCheck, inds = np.unique(Xnew[:,d], return_index=True)
+    #         for t in inds:
+    #             yL, yR = self.splitSorted(Xnew[:,Xnew.shape[1] - 1], t)
+    #             sse = self.computeSSE(yL, yR)
+    #             if sse < minSSE:
+    #                 minSSE = sse
+    #                 dstar = d
+    #                 tstar = t
+    #     return dstar, tstar
 
     def predict(self, X):
         """ Predict.
@@ -168,8 +175,7 @@ class GradientBoostedRegressionTree(object):
         self.F = None
         self.h = None
 
-    def fit(self, X, y):
-    #def fit(self, *, X, y):
+    def fit(self, *, X, y):
         """ Fit the model.
                 Args:
                 X: A of floats with shape [num_examples, num_features].
@@ -183,9 +189,9 @@ class GradientBoostedRegressionTree(object):
         F[:,0] = self.F0 * np.ones(X.shape[0])
         h = []
         for i in range(1, self.n_estimators + 1):
-            g = []
+            g = np.zeros(X.shape[0])
             for j in range(X.shape[0]):
-                g.append(y[j] - F[j,i - 1])
+                g[j] = y[j] - F[j,i - 1]
             h.append(RegressionTree(self.num_input_features, self.max_depth))
             h[i - 1].fit(X=X, y=g)
             hpred = h[i - 1].predict(X=X)
